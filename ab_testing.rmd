@@ -1,0 +1,126 @@
+---
+title: "A/B Testing of Marketing Strategies"
+author: "Yumi Yu"
+output: pdf_document
+---
+
+# Executive Summary
+Star Digital, a video service provider was curious about whether their advertisement is really effective, so it designed an experiment for advertising through internet to test it.
+
+# Main Business Goals
+There are three business goals I would like to discuss here:
+1. Is online advertising effective for Star Digital?
+2. Is there a frequency effect of advertising on purchase? In particular, whether increasing the frequency of advertising increases the probability of purchase?
+3. Which sites should Star Digital advertise on? In particular, should it put its advertising dollars in Site 6 or in Sites 1 through 5?(the cost of advertising at Sites 1 through 5 is 25 dollar per thousand impressions, while the cost of advertising at Site 6 is 20 dollar per thousand impressions.)
+
+# Analysis Process
+1. Explore the data set
+2. Check the sample size of the data
+3. Check whether there is missing data
+4. Evaluate the data set randomization efficiency
+5. Apply t.test and logistic regression model to analyze the business problems accordingly
+6. Analyze the results and interpret the business values
+
+# Whole Picture of the Experiment
+By considering the several aspects, including baseline conversion rate, campaign reach, the minimum lift that the advertiser cares to detect and power of the experiment. There are 2,656 control group and 22,647 treatment group. The duration of the experiment was 2 months in 2012.
+
+# Potential Concerns
+There may be SUTVA problems, for example, one of the member of treatment group and one of the member of control group are family. They might share information with others. 
+
+# Terminology to Know
+1. "t-test" is a statistic method. In this case, we will use it to check if one feature can cause any difference to control group and treatment group.
+2. "linear regression" is the model that we can learn about whether one feature have any effect to our purchase. We will interpret their effects by their coefficient. Positive means positive effect,negative indicates the opposite. And the absolute size of the coefficient means the size it cause. 
+3. "p-value" is a statistic results, we use p-value 0.05 as threshold to prove our assumption.
+
+
+# Load the data
+```{r}
+library(dplyr)
+library(readxl)
+star_dig = read_xls('/Users/yumi/Library/CloudStorage/GoogleDrive-yu015524@umn.edu/My Drive/msba6441/HW/hw2/Star Digital Dataset.xls')
+```
+
+# Explore the dataset
+```{r}
+# In this sample, there are 2,656 people in control group(10%) and
+# 22,647 in treatment group(90%)
+participant_counts <-star_dig %>% group_by(test) %>% count()
+```
+
+# Check the sample size of the data
+```{r}
+# detect a difference of 0.1 between the means of the two groups
+power.t.test(delta = 0.1, sig.level = 0.1, power = 0.8, type=c('two.sample'), alternative=c('two.sided'))
+```
+The result shows that the required sample size is around 1238. The data here is larger than minimum requirement, which means it is an overpowered study.
+
+# Check whether there is missing data
+```{r}
+# There is no missing data in the dataset.
+missing_data <- is.na(star_dig)
+
+col_missing <- colSums(missing_data)
+
+# We do not filter out the outliers data in each ad site.
+# Higher ad impressions possess business value as well.
+# We do not normalize data because the the unit of imp_1 to imp_6 are the same.
+```
+
+# Evaluate the Randomization efficiency
+```{r}
+star_dig <- star_dig %>%
+  mutate(total_ad_impression = imp_1 + imp_2 + imp_3 + imp_4 + imp_5 + imp_5)
+
+t.test(total_ad_impression ~ test, star_dig) # p-value = 0.9118
+```
+The data is efficiently randomized into control and treatment groups. Because the p-value is large than our threshold(5%), we cannot reject the assumption that there is no statistical difference in two groups.
+
+
+# Check whether online ad is effective to purchase
+```{r}
+t.test(purchase ~ test, star_dig)
+```
+According to statistical result, it shows that the mean purchase of the control group is 0.4857 and the test group is 0.5049. There is roughly .2 difference in average number of purchase the people hot in the treatment group relative to the control group.
+
+
+```{r}
+# Apply logistic regression model to check the relationship
+# between online ad exposure and purchase behavior
+summary(glm(purchase ~ test, star_dig, family = binomial))
+```
+It shows that the coefficient of the testing group is 0.019. That is, the treatment group has 1.9% higher probability than control group on the purchase for one unit change in treatment group. Therefore, online ad is effective to purchase.
+
+# Is there a frequency effect of advertising on purchase?
+```{r}
+# We first calculate the total frequency.
+star_dig = star_dig %>% mutate(total_freq = imp_1+imp_2+imp_3+imp_4+imp_5+imp_6)
+
+# Then, run the regression again.
+summary(lm(purchase ~ test*total_freq, star_dig))
+```
+In this linear regression model, the coefficient of test:total_freq(interaction of test and total_freq) shows how likely customers who expose to real ads will increase their probability of purchase if the frequency of shown ads increases. The p-value is small enough so we would say that the interaction between ads shown frequency and purchase willingness is statistically significant. That is, showing more ads to customers will increases 0.10%  probability in the purchase. Therefore, we conclude that there is a frequency effect of advertising on purchase.
+
+
+#  Which sites should Star Digital advertise on? In particular, should it put its advertising dollars in Site 6 or in Sites 1 through 5?
+```{r}
+# The effect of posing ads on Site 1 to Site 5 on customers.
+star_dig = star_dig %>% mutate(freq_15 = imp_1+imp_2+imp_3+imp_4+imp_5)
+summary(glm(purchase ~ test*freq_15, star_dig, family=binomial))
+```
+```{r}
+(exp(0.014830)-1)*100
+```
+The result of the logistic regression shows that customers who expose to real ads, when the company increases one unit of ads impression on Site 1 through Site 5, the probability of the purchase will increase 1.494%. The costs of advertising at these sites are all 25 dollar per thousand impressions. So to make customer who already expose to real ads, increases 1% of probability to purchase, the cost will be 0.016 dollar.
+
+```{r}
+# The effect of posing ads on Site 6 on customers.
+summary(glm(purchase ~ test*imp_6, star_dig, family=binomial))
+```
+```{r}
+(exp(0.017085)-1)*100
+```
+The result of the logistic regression shows that customers who expose to real ads, when the company increases one unit of ads impression on Site 6, the probability of the purchase will increase 1.723%. The costs of advertising at these sites are all 20 dollar per thousand impressions. So to make customer who already expose to real ads, increases 1% of probability to purchase, the cost will be 0.012 dollar.
+
+
+# Conclusion
+Based on the cost to increase the probability of purchase by 1%, Star Digital should advertise on Site 6.
