@@ -1,4 +1,4 @@
-# A/B Testing of Marketing Strategies
+# A/B Testing for Marketing Strategies
 
 ## Executive Summary
 Star Digital, a video service provider was curious about whether their advertisement is really effective, so it designed an experiment for advertising through internet to test it.
